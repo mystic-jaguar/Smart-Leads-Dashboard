@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'react-hot-toast';
@@ -7,7 +7,6 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import UsersPage from './pages/UsersPage';
-import { useThemeStore } from './store/themeStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -16,12 +15,6 @@ const queryClient = new QueryClient({
 });
 
 const App: React.FC = () => {
-  const { isDark } = useThemeStore();
-
-  useEffect(() => {
-    document.documentElement.classList.toggle('dark', isDark);
-  }, [isDark]);
-
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
