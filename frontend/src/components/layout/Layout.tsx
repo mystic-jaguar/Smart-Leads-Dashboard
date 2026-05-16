@@ -1,9 +1,20 @@
 import React from 'react';
-import { Navbar } from './Navbar';
+import { Sidebar } from './Sidebar';
+import { TopBar } from './TopBar';
 
-export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div className="min-h-screen bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
-    <Navbar />
-    <main className="max-w-7xl mx-auto px-4 py-6">{children}</main>
+interface LayoutProps {
+  children: React.ReactNode;
+  searchPlaceholder?: string;
+  onSearch?: (value: string) => void;
+  searchValue?: string;
+}
+
+export const Layout: React.FC<LayoutProps> = ({ children, searchPlaceholder, onSearch, searchValue }) => (
+  <div className="flex h-screen bg-gray-50 dark:bg-gray-950 overflow-hidden">
+    <Sidebar />
+    <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <TopBar searchPlaceholder={searchPlaceholder} onSearch={onSearch} searchValue={searchValue} />
+      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+    </div>
   </div>
 );
