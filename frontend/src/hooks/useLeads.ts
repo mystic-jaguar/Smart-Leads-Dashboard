@@ -1,5 +1,4 @@
-import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 import type { Lead, LeadFilters, LeadsResponse } from '../types';
 import toast from 'react-hot-toast';
@@ -75,41 +74,20 @@ export const useDeleteLead = () => {
   });
 };
 
-// Fetches all leads for dashboard analytics by paginating in the background.
-// Returns partial data immediately (first page) and keeps accumulating.
-export const useDashboardLeads = (since: string) => {
-  const PAGE_SIZE = 50;
+export interface DashboardStats {
+  total: number;
+  newThisWeek: number;
+  statusCounts: { New: number; Contacted: number; Qualified: number; Lost: number };
+  sourceCounts: { Website: number; Instagram: number; Referral: number };
+}
 
-  const query = useInfiniteQuery<LeadsResponse>({
-    queryKey: ['dashboard-leads', since],
-    initialPageParam: 1,
-    queryFn: async ({ pageParam }) => {
-      const params = new URLSearchParams({
-        page: String(pageParam),
-        limit: String(PAGE_SIZE),
-        sort: 'latest',
-        since,
-      });
-      const { data } = await api.get(`/leads?${params.toString()}`);
-      return { data: data.data, pagination: data.pagination };
+// Single aggregation call — returns pre-computed stats instantly
+export const useDashboardStats = (since: string) =>
+  useQuery<DashboardStats>({
+    queryKey: ['dashboard-stats', since],
+    queryFn: async () => {
+      const { data } = await api.get(`/leads/stats?since=${encodeURIComponent(since)}`);
+      return data.data;
     },
-    getNextPageParam: (lastPage) =>
-      lastPage.pagination.hasNextPage ? lastPage.pagination.page + 1 : undefined,
     staleTime: 30_000,
   });
-
-  // Auto-fetch all remaining pages sequentially in the background
-  useEffect(() => {
-    if (query.hasNextPage && !query.isFetchingNextPage) {
-      query.fetchNextPage();
-    }
-  }, [query.hasNextPage, query.isFetchingNextPage, query.data]);
-
-  // Flatten all fetched pages into a single leads array
-  const leads: Lead[] = query.data?.pages.flatMap((p) => p.data) ?? [];
-  const total = query.data?.pages[0]?.pagination.total ?? 0;
-  const isLoadingFirst = query.isLoading;
-  const isFetchingMore = query.isFetchingNextPage || query.hasNextPage;
-
-  return { leads, total, isLoadingFirst, isFetchingMore };
-};

@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { TrendingUp, Zap, Users, Clock, Download, MoreVertical, ChevronDown, Loader2 } from 'lucide-react';
+import { TrendingUp, Zap, Users, Clock, Download, MoreVertical, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
-import { useDashboardLeads } from '../hooks/useLeads';
+import { useDashboardStats } from '../hooks/useLeads';
 import api from '../lib/axios';
 import toast from 'react-hot-toast';
 import type { LeadStatus, LeadSource } from '../types';
@@ -47,29 +47,24 @@ const campaigns = [
   { name: 'Partner Refs', source: 'Referral', leads: 156, rate: '34.1%' },
 ];
 
+// Skeleton block reused across loading state
+const Skeleton: React.FC<{ className?: string; style?: React.CSSProperties }> = ({ className = '', style }) => (
+  <div className={`animate-pulse bg-gray-100 dark:bg-gray-800 rounded ${className}`} style={style} />
+);
+
 const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange>('Last 30 Days');
   const [rangeOpen, setRangeOpen] = useState(false);
-  const { leads, total, isLoadingFirst, isFetchingMore } = useDashboardLeads(getSinceDate(dateRange));
 
-  const statusCounts = leads.reduce<Record<string, number>>((acc, l) => {
-    acc[l.status] = (acc[l.status] || 0) + 1;
-    return acc;
-  }, {});
+  const { data: stats, isLoading } = useDashboardStats(getSinceDate(dateRange));
 
-  const sourceCounts = leads.reduce<Record<string, number>>((acc, l) => {
-    acc[l.source] = (acc[l.source] || 0) + 1;
-    return acc;
-  }, {});
-
-  const qualified = statusCounts['Qualified'] || 0;
+  const total = stats?.total ?? 0;
+  const statusCounts = stats?.statusCounts ?? { New: 0, Contacted: 0, Qualified: 0, Lost: 0 };
+  const sourceCounts = stats?.sourceCounts ?? { Website: 0, Instagram: 0, Referral: 0 };
+  const newThisWeek = stats?.newThisWeek ?? 0;
+  const qualified = statusCounts.Qualified;
   const convRate = total > 0 ? ((qualified / total) * 100).toFixed(1) : '0.0';
-  const newThisWeek = leads.filter((l) => {
-    const d = new Date(l.createdAt);
-    const now = new Date();
-    return (now.getTime() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
-  }).length;
 
   const statCards = [
     { label: 'Total Leads', value: total.toLocaleString(), change: '+12.5%', positive: true, icon: TrendingUp, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
@@ -99,15 +94,7 @@ const DashboardPage: React.FC = () => {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Analytics Overview</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5">
-              Real-time performance metrics for your lead pipeline.
-              {isFetchingMore && (
-                <span className="inline-flex items-center gap-1 text-xs text-blue-500">
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                  Loading more data...
-                </span>
-              )}
-            </p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Real-time performance metrics for your lead pipeline.</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -144,84 +131,86 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Stat cards */}
-        {isLoadingFirst ? (
-          <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[0,1,2,3].map((i) => (
-                <div key={i} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 animate-pulse">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800" />
-                    <div className="w-14 h-5 rounded-full bg-gray-100 dark:bg-gray-800" />
-                  </div>
-                  <div className="w-24 h-3 rounded bg-gray-100 dark:bg-gray-800 mb-2" />
-                  <div className="w-16 h-7 rounded bg-gray-100 dark:bg-gray-800" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map(({ label, value, change, positive, icon: Icon, color }) => (
+            <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
+                  <Icon className="w-4 h-4" />
                 </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse h-52" />
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse h-52" />
-            </div>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse h-44" />
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse h-44" />
-            </div>
-          </>
-        ) : (          <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {statCards.map(({ label, value, change, positive, icon: Icon, color }) => (
-                <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${color}`}>
-                      <Icon className="w-4 h-4" />
-                    </div>
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${positive ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400'}`}>
-                      {change}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
-                  <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5">{value}</p>
-                </div>
-              ))}
-            </div>
-
-            {/* Charts row */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {/* Status Distribution bar chart */}
-              <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                <div className="flex items-start justify-between mb-5">
-                  <div>
-                    <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Lead Status Distribution</h2>
-                    <p className="text-xs text-gray-400 mt-0.5">Breakdown of current leads across the funnel</p>
-                  </div>
-                  <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><MoreVertical className="w-4 h-4" /></button>
-                </div>
-                <div className="flex items-end gap-6 h-40 px-4">
-                  {(['New', 'Contacted', 'Qualified', 'Lost'] as LeadStatus[]).map((s) => {
-                    const count = statusCounts[s] || 0;
-                    const heightPct = (count / maxStatusCount) * 100;
-                    return (
-                      <div key={s} className="flex-1 flex flex-col items-center gap-2">
-                        <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{count}</span>
-                        <div className="w-full flex items-end" style={{ height: '100px' }}>
-                          <div
-                            className={`w-full rounded-t-lg ${statusColors[s]} transition-all duration-500`}
-                            style={{ height: `${Math.max(heightPct, 4)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-400">{s}</span>
-                      </div>
-                    );
-                  })}
-                </div>
+                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${positive ? 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400' : 'bg-red-50 text-red-500 dark:bg-red-900/20 dark:text-red-400'}`}>
+                  {change}
+                </span>
               </div>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{label}</p>
+              {isLoading
+                ? <Skeleton className="w-16 h-7 mt-1" />
+                : <p className="text-2xl font-bold text-gray-900 dark:text-gray-100 mt-0.5">{value}</p>
+              }
+            </div>
+          ))}
+        </div>
 
-              {/* Leads by Source donut-style */}
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Leads by Source</h2>
-                <p className="text-xs text-gray-400 mb-4">Where your leads are coming from</p>
+        {/* Charts row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          {/* Status Distribution bar chart */}
+          <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Lead Status Distribution</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Breakdown of current leads across the funnel</p>
+              </div>
+              <button className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><MoreVertical className="w-4 h-4" /></button>
+            </div>
+            {isLoading ? (
+              <div className="flex items-end gap-6 h-40 px-4">
+                {[70, 50, 85, 30].map((h, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-2">
+                    <Skeleton className="w-6 h-3" />
+                    <div className="w-full flex items-end" style={{ height: '100px' }}>
+                      <Skeleton className="w-full rounded-t-lg" style={{ height: `${h}%` }} />
+                    </div>
+                    <Skeleton className="w-12 h-3" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-end gap-6 h-40 px-4">
+                {(['New', 'Contacted', 'Qualified', 'Lost'] as LeadStatus[]).map((s) => {
+                  const count = statusCounts[s] || 0;
+                  const heightPct = (count / maxStatusCount) * 100;
+                  return (
+                    <div key={s} className="flex-1 flex flex-col items-center gap-2">
+                      <span className="text-xs font-medium text-gray-600 dark:text-gray-400">{count}</span>
+                      <div className="w-full flex items-end" style={{ height: '100px' }}>
+                        <div
+                          className={`w-full rounded-t-lg ${statusColors[s]} transition-all duration-500`}
+                          style={{ height: `${Math.max(heightPct, 4)}%` }}
+                        />
+                      </div>
+                      <span className="text-xs text-gray-400">{s}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
-                {/* Visual ring */}
+          {/* Leads by Source donut */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-1">Leads by Source</h2>
+            <p className="text-xs text-gray-400 mb-4">Where your leads are coming from</p>
+            {isLoading ? (
+              <>
+                <div className="flex justify-center mb-4">
+                  <Skeleton className="w-28 h-28 rounded-full" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  {[0,1,2].map((i) => <Skeleton key={i} className="w-full h-4" />)}
+                </div>
+              </>
+            ) : (
+              <>
                 <div className="flex justify-center mb-4">
                   <div className="relative w-28 h-28">
                     <svg viewBox="0 0 36 36" className="w-28 h-28 -rotate-90">
@@ -232,12 +221,8 @@ const DashboardPage: React.FC = () => {
                         return sources.map((src, i) => {
                           const pct = ((sourceCounts[src] || 0) / totalSource) * 100;
                           const el = (
-                            <circle
-                              key={src}
-                              cx="18" cy="18" r="15.9"
-                              fill="none"
-                              stroke={colors[i]}
-                              strokeWidth="3.5"
+                            <circle key={src} cx="18" cy="18" r="15.9" fill="none"
+                              stroke={colors[i]} strokeWidth="3.5"
                               strokeDasharray={`${pct} ${100 - pct}`}
                               strokeDashoffset={-offset}
                             />
@@ -253,7 +238,6 @@ const DashboardPage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-
                 <div className="flex flex-col gap-2">
                   {(['Website', 'Instagram', 'Referral'] as LeadSource[]).map((src) => {
                     const pct = totalSource > 0 ? Math.round(((sourceCounts[src] || 0) / totalSource) * 100) : 0;
@@ -268,68 +252,68 @@ const DashboardPage: React.FC = () => {
                     );
                   })}
                 </div>
-              </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* Recent Activity */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Recent Activity</h2>
+              <button onClick={() => navigate('/leads')} className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">View All</button>
             </div>
-
-            {/* Bottom row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              {/* Recent Activity */}
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Recent Activity</h2>
-                  <button onClick={() => navigate('/leads')} className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">View All</button>
-                </div>
-                <div className="flex flex-col gap-3">
-                  {recentActivity.map((item, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-700 dark:text-gray-300">
-                          <span className="font-medium">{item.name}</span> {item.action}
-                        </p>
-                        <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Campaign Performance */}
-              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Campaign Performance</h2>
-                  <div className="flex gap-1">
-                    {[0, 1, 2].map((i) => (
-                      <div key={i} className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`} />
-                    ))}
+            <div className="flex flex-col gap-3">
+              {recentActivity.map((item, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <span className="font-medium">{item.name}</span> {item.action}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{item.time}</p>
                   </div>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-100 dark:border-gray-800">
-                        <th className="text-left text-xs font-semibold text-gray-400 pb-2">Campaign Name</th>
-                        <th className="text-left text-xs font-semibold text-gray-400 pb-2">Source</th>
-                        <th className="text-right text-xs font-semibold text-gray-400 pb-2">Leads</th>
-                        <th className="text-right text-xs font-semibold text-gray-400 pb-2">Conv. Rate</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
-                      {campaigns.map((c) => (
-                        <tr key={c.name}>
-                          <td className="py-2.5 font-medium text-gray-800 dark:text-gray-200">{c.name}</td>
-                          <td className="py-2.5 text-gray-500 dark:text-gray-400">{c.source}</td>
-                          <td className="py-2.5 text-right text-gray-700 dark:text-gray-300">{c.leads}</td>
-                          <td className="py-2.5 text-right font-medium text-green-600">{c.rate}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Campaign Performance */}
+          <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Campaign Performance</h2>
+              <div className="flex gap-1">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className={`w-2 h-2 rounded-full ${i === 0 ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'}`} />
+                ))}
               </div>
             </div>
-          </>
-        )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 dark:border-gray-800">
+                    <th className="text-left text-xs font-semibold text-gray-400 pb-2">Campaign Name</th>
+                    <th className="text-left text-xs font-semibold text-gray-400 pb-2">Source</th>
+                    <th className="text-right text-xs font-semibold text-gray-400 pb-2">Leads</th>
+                    <th className="text-right text-xs font-semibold text-gray-400 pb-2">Conv. Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
+                  {campaigns.map((c) => (
+                    <tr key={c.name}>
+                      <td className="py-2.5 font-medium text-gray-800 dark:text-gray-200">{c.name}</td>
+                      <td className="py-2.5 text-gray-500 dark:text-gray-400">{c.source}</td>
+                      <td className="py-2.5 text-right text-gray-700 dark:text-gray-300">{c.leads}</td>
+                      <td className="py-2.5 text-right font-medium text-green-600">{c.rate}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
     </Layout>
   );

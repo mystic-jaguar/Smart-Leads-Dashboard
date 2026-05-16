@@ -4,6 +4,86 @@ import Lead from '../models/Lead';
 import { AuthRequest, ILead, LeadFilterQuery } from '../types';
 import { createError } from '../middleware/errorHandler';
 
+export const getDashboardStats = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { since } = req.query as { since?: string };
+
+    const matchStage: FilterQuery<ILead> = {};
+    if (req.user?.role === 'sales') matchStage.createdBy = req.user.id;
+    if (since) matchStage.createdAt = { $gte: new Date(since) };
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [result] = await Lead.aggregate([
+      { $match: matchStage },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: 1 },
+          byStatus: {
+            $push: '$status',
+          },
+          bySource: {
+            $push: '$source',
+          },
+          newThisWeek: {
+            $sum: {
+              $cond: [{ $gte: ['$createdAt', sevenDaysAgo] }, 1, 0],
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          total: 1,
+          newThisWeek: 1,
+          statusCounts: {
+            New: {
+              $size: { $filter: { input: '$byStatus', cond: { $eq: ['$$this', 'New'] } } },
+            },
+            Contacted: {
+              $size: { $filter: { input: '$byStatus', cond: { $eq: ['$$this', 'Contacted'] } } },
+            },
+            Qualified: {
+              $size: { $filter: { input: '$byStatus', cond: { $eq: ['$$this', 'Qualified'] } } },
+            },
+            Lost: {
+              $size: { $filter: { input: '$byStatus', cond: { $eq: ['$$this', 'Lost'] } } },
+            },
+          },
+          sourceCounts: {
+            Website: {
+              $size: { $filter: { input: '$bySource', cond: { $eq: ['$$this', 'Website'] } } },
+            },
+            Instagram: {
+              $size: { $filter: { input: '$bySource', cond: { $eq: ['$$this', 'Instagram'] } } },
+            },
+            Referral: {
+              $size: { $filter: { input: '$bySource', cond: { $eq: ['$$this', 'Referral'] } } },
+            },
+          },
+        },
+      },
+    ]);
+
+    const stats = result ?? {
+      total: 0,
+      newThisWeek: 0,
+      statusCounts: { New: 0, Contacted: 0, Qualified: 0, Lost: 0 },
+      sourceCounts: { Website: 0, Instagram: 0, Referral: 0 },
+    };
+
+    res.status(200).json({ success: true, data: stats });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getLeads = async (
   req: AuthRequest,
   res: Response,

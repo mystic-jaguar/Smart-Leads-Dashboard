@@ -7,6 +7,7 @@ import {
   updateLead,
   deleteLead,
   exportLeadsCSV,
+  getDashboardStats,
 } from '../controllers/leadController';
 import { protect } from '../middleware/auth';
 import { validate } from '../middleware/validate';
@@ -29,6 +30,7 @@ const leadValidation = [
 
 router.get('/', getLeads);
 router.get('/export', exportLeadsCSV);
+router.get('/stats', getDashboardStats);
 router.get('/:id', getLead);
 router.post('/', leadValidation, validate, createLead);
 router.put('/:id', leadValidation, validate, updateLead);
