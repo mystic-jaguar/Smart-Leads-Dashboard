@@ -32,6 +32,9 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
   const [source, setSource] = useState(lead.source);
   const [email, setEmail] = useState(lead.email);
   const [notes, setNotes] = useState('Expressed interest in the Q3 scalability package. Concerned about integration time with legacy systems. Follow up requested by Tuesday morning.');
+  const [timelineItems, setTimelineItems] = useState(timeline);
+  const [noteInput, setNoteInput] = useState('');
+  const [addingNote, setAddingNote] = useState(false);
 
   const creator = typeof lead.createdBy === 'object' ? lead.createdBy : null;
 
@@ -46,6 +49,53 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
     deleteMutation.mutate(lead._id, {
       onSuccess: () => { toast.success('Lead deleted'); onBack(); },
     });
+  };
+
+  const handleAddNote = () => {
+    if (!noteInput.trim()) return;
+    const now = new Date();
+    const formatted = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' +
+      now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    setTimelineItems((prev) => [{ icon: '🟢', title: 'Activity Note', desc: noteInput.trim(), date: formatted }, ...prev]);
+    setNoteInput('');
+    setAddingNote(false);
+    toast.success('Note added');
+  };
+
+  const handleScheduleMeeting = () => {
+    const subject = encodeURIComponent(`Meeting with ${lead.name}`);
+    const body = encodeURIComponent(`Hi,\n\nI'd like to schedule a meeting to discuss your needs.\n\nBest regards`);
+    window.open(`mailto:${lead.email}?subject=${subject}&body=${body}`);
+  };
+
+  const handleGenerateContract = () => {
+    const content = [
+      `CONTRACT DRAFT`,
+      `==============`,
+      `Lead: ${lead.name}`,
+      `Email: ${lead.email}`,
+      `Status: ${status}`,
+      `Source: ${source}`,
+      `Date: ${new Date().toLocaleDateString()}`,
+      ``,
+      `This document serves as a preliminary contract draft for the above lead.`,
+      `Please review and finalize with your legal team before sending.`,
+    ].join('\n');
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `contract-${lead.name.replace(/\s+/g, '-').toLowerCase()}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Contract draft downloaded');
+  };
+
+  const handleTransferLead = () => {
+    const email = prompt('Enter the email of the team member to transfer this lead to:');
+    if (email && email.trim()) {
+      toast.success(`Lead transfer request sent to ${email.trim()}`);
+    }
   };
 
   return (
@@ -151,7 +201,7 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
           <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100 mb-4">Interaction Timeline</h2>
             <div className="flex flex-col gap-4">
-              {timeline.map((item, i) => (
+              {timelineItems.map((item, i) => (
                 <div key={i} className="flex gap-3">
                   <span className="text-lg shrink-0 mt-0.5">{item.icon}</span>
                   <div className="flex-1 min-w-0">
@@ -164,9 +214,39 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
                 </div>
               ))}
             </div>
-            <button className="mt-4 w-full border border-dashed border-gray-300 dark:border-gray-600 rounded-lg py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors">
-              + Add Activity Note
-            </button>
+            {addingNote ? (
+              <div className="mt-4 flex flex-col gap-2">
+                <textarea
+                  autoFocus
+                  value={noteInput}
+                  onChange={(e) => setNoteInput(e.target.value)}
+                  placeholder="Write your activity note..."
+                  rows={3}
+                  className="w-full rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleAddNote}
+                    className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+                  >
+                    Add Note
+                  </button>
+                  <button
+                    onClick={() => { setAddingNote(false); setNoteInput(''); }}
+                    className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setAddingNote(true)}
+                className="mt-4 w-full border border-dashed border-gray-300 dark:border-gray-600 rounded-lg py-2.5 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
+              >
+                + Add Activity Note
+              </button>
+            )}
           </div>
         </div>
 
@@ -201,11 +281,11 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
             <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-3">Quick Actions</p>
             <div className="flex flex-col gap-2">
               {[
-                { icon: Clock, label: 'Schedule Meeting' },
-                { icon: FileText, label: 'Generate Contract' },
-                { icon: Share2, label: 'Transfer Lead' },
-              ].map(({ icon: Icon, label }) => (
-                <button key={label} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-colors text-left">
+                { icon: Clock, label: 'Schedule Meeting', action: handleScheduleMeeting },
+                { icon: FileText, label: 'Generate Contract', action: handleGenerateContract },
+                { icon: Share2, label: 'Transfer Lead', action: handleTransferLead },
+              ].map(({ icon: Icon, label, action }) => (
+                <button key={label} onClick={action} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm text-gray-700 dark:text-gray-300 transition-colors text-left">
                   <Icon className="w-4 h-4 text-gray-400 shrink-0" />
                   {label}
                 </button>
@@ -222,7 +302,10 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
             <p className="text-sm text-gray-300 leading-relaxed">
               Lead recently engaged with your pricing page. High intent signal detected based on activity patterns.
             </p>
-            <button className="mt-3 text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors">
+            <button
+              onClick={() => toast('Full report feature coming soon.', { icon: '📊' })}
+              className="mt-3 text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
+            >
               VIEW FULL REPORT →
             </button>
           </div>

@@ -73,7 +73,7 @@ const LoginPage: React.FC = () => {
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-              <button type="button" className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Forgot password?</button>
+              <button type="button" onClick={() => toast('Password reset: contact your administrator.', { icon: 'ℹ️' })} className="text-xs text-blue-600 dark:text-blue-400 hover:underline">Forgot password?</button>
             </div>
             <div className="relative">
               <input

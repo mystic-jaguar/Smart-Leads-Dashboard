@@ -1,9 +1,15 @@
-import React from 'react';
-import { TrendingUp, Zap, Users, Clock, Download, MoreVertical } from 'lucide-react';
+import React, { useState } from 'react';
+import { TrendingUp, Zap, Users, Clock, Download, MoreVertical, ChevronDown } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { useLeads } from '../hooks/useLeads';
 import { Spinner } from '../components/ui/Spinner';
+import api from '../lib/axios';
+import toast from 'react-hot-toast';
 import type { LeadStatus, LeadSource } from '../types';
+
+const DATE_RANGES = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'This Year'] as const;
+type DateRange = typeof DATE_RANGES[number];
 
 const statusColors: Record<LeadStatus, string> = {
   New: 'bg-blue-500',
@@ -32,6 +38,9 @@ const campaigns = [
 ];
 
 const DashboardPage: React.FC = () => {
+  const navigate = useNavigate();
+  const [dateRange, setDateRange] = useState<DateRange>('Last 30 Days');
+  const [rangeOpen, setRangeOpen] = useState(false);
   const { data, isLoading } = useLeads({ page: 1, limit: 50, sort: 'latest' });
 
   const leads = data?.data ?? [];
@@ -62,6 +71,17 @@ const DashboardPage: React.FC = () => {
     { label: 'Response Time', value: '4.2h', change: 'Avg 12h', positive: true, icon: Clock, color: 'text-orange-500 bg-orange-50 dark:bg-orange-900/20' },
   ];
 
+  const handleExport = async () => {
+    try {
+      const res = await api.get('/leads/export', { responseType: 'blob' });
+      const url = URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'leads-export.csv'; a.click();
+      URL.revokeObjectURL(url);
+      toast.success('CSV exported');
+    } catch { toast.error('Export failed'); }
+  };
+
   const maxStatusCount = Math.max(...Object.values(statusCounts), 1);
   const totalSource = Object.values(sourceCounts).reduce((a, b) => a + b, 0) || 1;
 
@@ -75,11 +95,33 @@ const DashboardPage: React.FC = () => {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Real-time performance metrics for your lead pipeline.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-              <Clock className="w-4 h-4" />
-              Last 30 Days
-            </button>
-            <button className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+            <div className="relative">
+              <button
+                onClick={() => setRangeOpen((o) => !o)}
+                className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                <Clock className="w-4 h-4" />
+                {dateRange}
+                <ChevronDown className="w-3.5 h-3.5" />
+              </button>
+              {rangeOpen && (
+                <div className="absolute right-0 top-10 z-20 w-44 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 text-sm">
+                  {DATE_RANGES.map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => { setDateRange(r); setRangeOpen(false); }}
+                      className={`w-full text-left px-4 py-2 transition-colors ${r === dateRange ? 'text-blue-600 dark:text-blue-400 font-medium bg-blue-50 dark:bg-blue-900/20' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
+            >
               <Download className="w-4 h-4" />
               Export Data
             </button>
@@ -200,7 +242,7 @@ const DashboardPage: React.FC = () => {
               <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Recent Activity</h2>
-                  <button className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">View All</button>
+                  <button onClick={() => navigate('/leads')} className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">View All</button>
                 </div>
                 <div className="flex flex-col gap-3">
                   {recentActivity.map((item, i) => (
