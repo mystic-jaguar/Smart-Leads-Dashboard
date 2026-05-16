@@ -90,4 +90,12 @@ export const useDashboardStats = (since: string) =>
       return data.data;
     },
     staleTime: 30_000,
+    retry: 1,
+    // Return zeros on error so the dashboard renders instead of staying in skeleton
+    placeholderData: {
+      total: 0,
+      newThisWeek: 0,
+      statusCounts: { New: 0, Contacted: 0, Qualified: 0, Lost: 0 },
+      sourceCounts: { Website: 0, Instagram: 0, Referral: 0 },
+    },
   });
