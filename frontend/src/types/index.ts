@@ -47,6 +47,7 @@ export interface LeadFilters {
   source?: LeadSource | '';
   search?: string;
   sort?: 'latest' | 'oldest';
+  since?: string; // ISO date string
 }
 
 export interface ApiError {

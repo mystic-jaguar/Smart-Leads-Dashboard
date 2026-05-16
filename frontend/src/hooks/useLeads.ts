@@ -11,6 +11,7 @@ export const useLeads = (filters: LeadFilters) => {
   if (filters.source) params.set('source', filters.source);
   if (filters.search) params.set('search', filters.search);
   if (filters.sort) params.set('sort', filters.sort);
+  if (filters.since) params.set('since', filters.since);
 
   return useQuery<LeadsResponse>({
     queryKey: ['leads', filters],

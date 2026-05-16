@@ -11,6 +11,17 @@ import type { LeadStatus, LeadSource } from '../types';
 const DATE_RANGES = ['Last 7 Days', 'Last 30 Days', 'Last 90 Days', 'This Year'] as const;
 type DateRange = typeof DATE_RANGES[number];
 
+function getSinceDate(range: DateRange): string {
+  const now = new Date();
+  switch (range) {
+    case 'Last 7 Days':  now.setDate(now.getDate() - 7); break;
+    case 'Last 30 Days': now.setDate(now.getDate() - 30); break;
+    case 'Last 90 Days': now.setDate(now.getDate() - 90); break;
+    case 'This Year':    now.setMonth(0, 1); now.setHours(0, 0, 0, 0); break;
+  }
+  return now.toISOString();
+}
+
 const statusColors: Record<LeadStatus, string> = {
   New: 'bg-blue-500',
   Contacted: 'bg-yellow-400',
@@ -41,7 +52,7 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange>('Last 30 Days');
   const [rangeOpen, setRangeOpen] = useState(false);
-  const { data, isLoading } = useLeads({ page: 1, limit: 50, sort: 'latest' });
+  const { data, isLoading } = useLeads({ page: 1, limit: 500, sort: 'latest', since: getSinceDate(dateRange) });
 
   const leads = data?.data ?? [];
   const total = data?.pagination.total ?? 0;

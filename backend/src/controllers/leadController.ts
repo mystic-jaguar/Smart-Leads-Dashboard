@@ -17,10 +17,11 @@ export const getLeads = async (
       source,
       search,
       sort = 'latest',
+      since,
     } = req.query as LeadFilterQuery;
 
     const pageNum = Math.max(1, parseInt(page, 10));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10)));
+    const limitNum = Math.min(500, Math.max(1, parseInt(limit, 10)));
     const skip = (pageNum - 1) * limitNum;
 
     const filter: FilterQuery<ILead> = {};
@@ -32,6 +33,7 @@ export const getLeads = async (
 
     if (status) filter.status = status;
     if (source) filter.source = source;
+    if (since) filter.createdAt = { $gte: new Date(since) };
 
     if (search) {
       const regex = new RegExp(search, 'i');
@@ -190,12 +192,13 @@ export const exportLeadsCSV = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { status, source, search, sort = 'latest' } = req.query as LeadFilterQuery;
+    const { status, source, search, sort = 'latest', since } = req.query as LeadFilterQuery;
 
     const filter: FilterQuery<ILead> = {};
     if (req.user?.role === 'sales') filter.createdBy = req.user.id;
     if (status) filter.status = status;
     if (source) filter.source = source;
+    if (since) filter.createdAt = { $gte: new Date(since) };
     if (search) {
       const regex = new RegExp(search, 'i');
       filter.$or = [{ name: regex }, { email: regex }];

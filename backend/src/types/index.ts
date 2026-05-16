@@ -46,6 +46,7 @@ export interface LeadFilterQuery extends PaginationQuery {
   source?: LeadSource;
   search?: string;
   sort?: 'latest' | 'oldest';
+  since?: string; // ISO date string — filter leads created on or after this date
 }
 
 export interface ApiResponse<T = unknown> {
