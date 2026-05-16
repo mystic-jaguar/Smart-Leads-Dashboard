@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { TrendingUp, Zap, Users, Clock, Download, MoreVertical, ChevronDown } from 'lucide-react';
+import { TrendingUp, Zap, Users, Clock, Download, MoreVertical, ChevronDown, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
-import { useLeads } from '../hooks/useLeads';
-import { Spinner } from '../components/ui/Spinner';
+import { useDashboardLeads } from '../hooks/useLeads';
 import api from '../lib/axios';
 import toast from 'react-hot-toast';
 import type { LeadStatus, LeadSource } from '../types';
@@ -52,10 +51,7 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [dateRange, setDateRange] = useState<DateRange>('Last 30 Days');
   const [rangeOpen, setRangeOpen] = useState(false);
-  const { data, isLoading } = useLeads({ page: 1, limit: 500, sort: 'latest', since: getSinceDate(dateRange) });
-
-  const leads = data?.data ?? [];
-  const total = data?.pagination.total ?? 0;
+  const { leads, total, isLoadingFirst, isFetchingMore } = useDashboardLeads(getSinceDate(dateRange));
 
   const statusCounts = leads.reduce<Record<string, number>>((acc, l) => {
     acc[l.status] = (acc[l.status] || 0) + 1;
@@ -103,7 +99,15 @@ const DashboardPage: React.FC = () => {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Analytics Overview</h1>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Real-time performance metrics for your lead pipeline.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5">
+              Real-time performance metrics for your lead pipeline.
+              {isFetchingMore && (
+                <span className="inline-flex items-center gap-1 text-xs text-blue-500">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Loading more data...
+                </span>
+              )}
+            </p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative">
@@ -140,10 +144,30 @@ const DashboardPage: React.FC = () => {
         </div>
 
         {/* Stat cards */}
-        {isLoading ? (
-          <div className="py-12 flex justify-center"><Spinner size="lg" /></div>
-        ) : (
+        {isLoadingFirst ? (
           <>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[0,1,2,3].map((i) => (
+                <div key={i} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4 animate-pulse">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-800" />
+                    <div className="w-14 h-5 rounded-full bg-gray-100 dark:bg-gray-800" />
+                  </div>
+                  <div className="w-24 h-3 rounded bg-gray-100 dark:bg-gray-800 mb-2" />
+                  <div className="w-16 h-7 rounded bg-gray-100 dark:bg-gray-800" />
+                </div>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+              <div className="lg:col-span-2 bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse h-52" />
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse h-52" />
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse h-44" />
+              <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-5 animate-pulse h-44" />
+            </div>
+          </>
+        ) : (          <>
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {statCards.map(({ label, value, change, positive, icon: Icon, color }) => (
                 <div key={label} className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
