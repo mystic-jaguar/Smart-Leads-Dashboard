@@ -1,6 +1,8 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
+import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
 import { Toaster } from 'react-hot-toast';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
@@ -11,12 +13,21 @@ import UsersPage from './pages/UsersPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
+    queries: {
+      retry: 1,
+      staleTime: 5 * 60 * 1000,      // data stays fresh for 5 minutes
+      gcTime: 24 * 60 * 60 * 1000,   // keep in cache/storage for 24 hours
+    },
   },
 });
 
+const persister = createSyncStoragePersister({
+  storage: window.localStorage,
+  key: 'smart-leads-cache',
+});
+
 const App: React.FC = () => (
-  <QueryClientProvider client={queryClient}>
+  <PersistQueryClientProvider client={queryClient} persistOptions={{ persister }}>
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
@@ -33,7 +44,7 @@ const App: React.FC = () => (
       position="top-right"
       toastOptions={{ duration: 3000 }}
     />
-  </QueryClientProvider>
+  </PersistQueryClientProvider>
 );
 
 export default App;
