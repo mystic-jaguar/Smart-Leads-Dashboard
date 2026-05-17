@@ -24,16 +24,10 @@ export const getDashboardStats = async (
         $group: {
           _id: null,
           total: { $sum: 1 },
-          byStatus: {
-            $push: '$status',
-          },
-          bySource: {
-            $push: '$source',
-          },
+          byStatus: { $push: '$status' },
+          bySource: { $push: '$source' },
           newThisWeek: {
-            $sum: {
-              $cond: [{ $gte: ['$createdAt', sevenDaysAgo] }, 1, 0],
-            },
+            $sum: { $cond: [{ $gte: ['$createdAt', sevenDaysAgo] }, 1, 0] },
           },
         },
       },
@@ -43,29 +37,15 @@ export const getDashboardStats = async (
           total: 1,
           newThisWeek: 1,
           statusCounts: {
-            New: {
-              $size: { $filter: { input: '$byStatus', cond: { $eq: ['$$this', 'New'] } } },
-            },
-            Contacted: {
-              $size: { $filter: { input: '$byStatus', cond: { $eq: ['$$this', 'Contacted'] } } },
-            },
-            Qualified: {
-              $size: { $filter: { input: '$byStatus', cond: { $eq: ['$$this', 'Qualified'] } } },
-            },
-            Lost: {
-              $size: { $filter: { input: '$byStatus', cond: { $eq: ['$$this', 'Lost'] } } },
-            },
+            New:       { $size: { $filter: { input: '$byStatus', as: 'item', cond: { $eq: ['$$item', 'New'] } } } },
+            Contacted: { $size: { $filter: { input: '$byStatus', as: 'item', cond: { $eq: ['$$item', 'Contacted'] } } } },
+            Qualified: { $size: { $filter: { input: '$byStatus', as: 'item', cond: { $eq: ['$$item', 'Qualified'] } } } },
+            Lost:      { $size: { $filter: { input: '$byStatus', as: 'item', cond: { $eq: ['$$item', 'Lost'] } } } },
           },
           sourceCounts: {
-            Website: {
-              $size: { $filter: { input: '$bySource', cond: { $eq: ['$$this', 'Website'] } } },
-            },
-            Instagram: {
-              $size: { $filter: { input: '$bySource', cond: { $eq: ['$$this', 'Instagram'] } } },
-            },
-            Referral: {
-              $size: { $filter: { input: '$bySource', cond: { $eq: ['$$this', 'Referral'] } } },
-            },
+            Website:   { $size: { $filter: { input: '$bySource', as: 'item', cond: { $eq: ['$$item', 'Website'] } } } },
+            Instagram: { $size: { $filter: { input: '$bySource', as: 'item', cond: { $eq: ['$$item', 'Instagram'] } } } },
+            Referral:  { $size: { $filter: { input: '$bySource', as: 'item', cond: { $eq: ['$$item', 'Referral'] } } } },
           },
         },
       },
@@ -106,7 +86,6 @@ export const getLeads = async (
 
     const filter: FilterQuery<ILead> = {};
 
-    // Sales users only see their own leads
     if (req.user?.role === 'sales') {
       filter.createdBy = req.user.id;
     }
@@ -160,7 +139,6 @@ export const getLead = async (
     const lead = await Lead.findById(req.params.id).populate('createdBy', 'name email');
     if (!lead) return next(createError('Lead not found', 404));
 
-    // Sales users can only view their own leads
     if (
       req.user?.role === 'sales' &&
       lead.createdBy.toString() !== req.user.id
@@ -213,7 +191,6 @@ export const updateLead = async (
     const lead = await Lead.findById(req.params.id);
     if (!lead) return next(createError('Lead not found', 404));
 
-    // Sales users can only update their own leads
     if (
       req.user?.role === 'sales' &&
       lead.createdBy.toString() !== req.user.id
@@ -247,7 +224,6 @@ export const deleteLead = async (
     const lead = await Lead.findById(req.params.id);
     if (!lead) return next(createError('Lead not found', 404));
 
-    // Only admin can delete any lead; sales can only delete their own
     if (
       req.user?.role === 'sales' &&
       lead.createdBy.toString() !== req.user.id

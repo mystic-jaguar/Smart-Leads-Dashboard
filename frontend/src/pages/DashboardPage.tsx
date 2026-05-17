@@ -47,7 +47,9 @@ const DashboardPage: React.FC = () => {
   const [dateRange, setDateRange] = useState<DateRange>('Last 30 Days');
   const [rangeOpen, setRangeOpen] = useState(false);
 
-  const { data: stats, isLoading, isFetching, isError } = useDashboardStats(getSinceDate(dateRange));
+  // Memoize the since date so the query key stays stable between renders
+  const since = React.useMemo(() => getSinceDate(dateRange), [dateRange]);
+  const { data: stats, isLoading, isFetching, isError } = useDashboardStats(since);
 
   // Always render — use zeros while loading/error
   const total        = stats?.total ?? 0;
