@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, Bell, HelpCircle, Moon, Sun, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useThemeStore } from '../../store/themeStore';
+import { ContactSupportModal } from '../ui/ContactSupportModal';
 
 interface TopBarProps {
   searchPlaceholder?: string;
@@ -25,6 +26,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   const [localSearch, setLocalSearch] = useState(searchValue);
   const [notifOpen, setNotifOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
   const [notifications, setNotifications] = useState(NOTIFICATIONS);
 
   const notifRef = useRef<HTMLDivElement>(null);
@@ -53,6 +55,7 @@ export const TopBar: React.FC<TopBarProps> = ({
     : 'U';
 
   return (
+    <>
     <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex items-center px-5 gap-4 shrink-0">
       {/* Search */}
       <div className="flex-1 max-w-sm relative">
@@ -132,13 +135,12 @@ export const TopBar: React.FC<TopBarProps> = ({
           </button>
           {helpOpen && (
             <div className="absolute right-0 top-10 z-30 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1 text-sm">
-              <a
-                href="mailto:support@smartleads.io"
-                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                onClick={() => setHelpOpen(false)}
+              <button
+                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors w-full text-left"
+                onClick={() => { setSupportOpen(true); setHelpOpen(false); }}
               >
                 Contact Support
-              </a>
+              </button>
               <a
                 href="https://docs.smartleads.io"
                 target="_blank"
@@ -170,5 +172,7 @@ export const TopBar: React.FC<TopBarProps> = ({
         </div>
       </div>
     </header>
+    <ContactSupportModal isOpen={supportOpen} onClose={() => setSupportOpen(false)} />
+  </>
   );
 };

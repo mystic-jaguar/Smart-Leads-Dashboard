@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Users2, Settings, HelpCircle, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { ContactSupportModal } from '../ui/ContactSupportModal';
 
 const navItems = [
   { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -12,6 +13,7 @@ const navItems = [
 export const Sidebar: React.FC = () => {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
+  const [supportOpen, setSupportOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -76,13 +78,13 @@ export const Sidebar: React.FC = () => {
 
       {/* Bottom */}
       <div className="px-2 py-4 border-t border-gray-100 dark:border-gray-700 flex flex-col gap-0.5">
-        <a
-          href="mailto:support@smartleads.io"
+        <button
+          onClick={() => setSupportOpen(true)}
           className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors w-full text-left"
         >
           <HelpCircle className="w-4 h-4 shrink-0" />
           Support
-        </a>
+        </button>
         <button
           onClick={handleLogout}
           className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors w-full text-left"
@@ -91,6 +93,7 @@ export const Sidebar: React.FC = () => {
           Sign Out
         </button>
       </div>
+      <ContactSupportModal isOpen={supportOpen} onClose={() => setSupportOpen(false)} />
     </aside>
   );
 };

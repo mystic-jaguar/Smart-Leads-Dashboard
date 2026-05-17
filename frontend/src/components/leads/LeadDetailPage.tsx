@@ -3,6 +3,8 @@ import { ChevronRight, FileText, Share2, Clock, UserCircle2 } from 'lucide-react
 import type { Lead } from '../../types';
 import { Badge } from '../ui/Badge';
 import { useUpdateLead, useDeleteLead } from '../../hooks/useLeads';
+import { TransferLeadModal } from '../ui/TransferLeadModal';
+import { ScheduleMeetingModal } from '../ui/ScheduleMeetingModal';
 import toast from 'react-hot-toast';
 
 interface LeadDetailPageProps {
@@ -35,6 +37,8 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
   const [timelineItems, setTimelineItems] = useState(timeline);
   const [noteInput, setNoteInput] = useState('');
   const [addingNote, setAddingNote] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [meetingOpen, setMeetingOpen] = useState(false);
 
   const creator = typeof lead.createdBy === 'object' ? lead.createdBy : null;
 
@@ -63,9 +67,7 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
   };
 
   const handleScheduleMeeting = () => {
-    const subject = encodeURIComponent(`Meeting with ${lead.name}`);
-    const body = encodeURIComponent(`Hi,\n\nI'd like to schedule a meeting to discuss your needs.\n\nBest regards`);
-    window.open(`mailto:${lead.email}?subject=${subject}&body=${body}`);
+    setMeetingOpen(true);
   };
 
   const handleGenerateContract = () => {
@@ -92,10 +94,11 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
   };
 
   const handleTransferLead = () => {
-    const email = prompt('Enter the email of the team member to transfer this lead to:');
-    if (email && email.trim()) {
-      toast.success(`Lead transfer request sent to ${email.trim()}`);
-    }
+    setTransferOpen(true);
+  };
+
+  const handleTransferConfirm = (recipientEmail: string) => {
+    toast.success(`Lead transfer request sent to ${recipientEmail}`);
   };
 
   return (
@@ -311,6 +314,18 @@ export const LeadDetailPage: React.FC<LeadDetailPageProps> = ({ lead, onBack }) 
           </div>
         </div>
       </div>
+
+      <TransferLeadModal
+        isOpen={transferOpen}
+        onClose={() => setTransferOpen(false)}
+        onConfirm={handleTransferConfirm}
+      />
+      <ScheduleMeetingModal
+        isOpen={meetingOpen}
+        onClose={() => setMeetingOpen(false)}
+        leadName={lead.name}
+        leadEmail={lead.email}
+      />
     </div>
   );
 };
